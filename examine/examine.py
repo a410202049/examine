@@ -12,6 +12,8 @@ import sys
 
 from selenium.common.exceptions import NoAlertPresentException
 from selenium.webdriver.support.wait import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.by import By
 
 reload(sys)
 sys.setdefaultencoding('utf8')
@@ -25,7 +27,7 @@ class AxfExamineVote(object):
     """
 
     def __init__(self):
-        # self.url = "http://ius.iclick.cn/Survey/Step/3750?userkey=8AC7D7026DA6305CC94B0AEAE36BEC41&page=21"
+        # self.url = "http://ius.iclick.cn/Survey/Step/3750?userkey=F968752230D0DE8C398178035D518C3B&page=6"
         self.url = "http://ius.iclick.cn/Survey/Index/3750"
         # http://ius.iclick.cn/Survey/Step/3750?userkey=33CD5237DEA808AAAB2B276B8CAB7A04&page=4
         options = webdriver.ChromeOptions()
@@ -111,9 +113,13 @@ class AxfExamineVote(object):
         start_btn = self.driver.find_element_by_id('sub')
         start_btn.click()
 
+        # self.page_action()
         while True:
-            self.page_action()
-            sleep(2)
+            try:
+                self.page_action()
+            except Exception as e:
+                print('---{0}'.format(e))
+        #     sleep(2)
 
         # 设置代理
         # options.add_argument('--proxy-server=http://' + ipport)
@@ -141,10 +147,12 @@ class AxfExamineVote(object):
         select_list = QBox.find_elements_by_css_selector('dl dd select')
         province_option = select_list[0].find_elements_by_css_selector('option')  # 省份
         province_element = self.wait.until(lambda diver: province_option[random.randint(1, 34)])
+        sleep(1)
         province_element.click()
 
         city_option = select_list[1].find_elements_by_css_selector('option')  # 城市
         city_element = self.wait.until(lambda diver: city_option[random.randint(1, len(city_option))])
+        sleep(1)
         city_element.click()
 
     def question_checkbox(self, QBox, checked_index=None):
@@ -251,6 +259,7 @@ class AxfExamineVote(object):
             td_list = on_day_tr_element.find_elements_by_css_selector('td')
             element = self.wait.until(lambda diver: td_list[0].find_element_by_css_selector('input'))
             if not element.get_attribute('checked'):
+                sleep(2)
                 element.click()
         except Exception as e:
             print(e)
