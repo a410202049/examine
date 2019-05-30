@@ -1,6 +1,8 @@
 #!/usr/bin/python
 # -*- encoding: utf-8 -*-
 from __future__ import unicode_literals
+
+import traceback
 from time import sleep
 
 import re
@@ -27,18 +29,17 @@ class AxfExamineVote(object):
     """
 
     def __init__(self):
-        # self.url = "http://ius.iclick.cn/Survey/Step/3750?userkey=F968752230D0DE8C398178035D518C3B&page=6"
+        # self.url = "http://ius.iclick.cn/Survey/Step/3750?userkey=B1994B871724EAC250697F2823B5CE2E&page=21"
         self.url = "http://ius.iclick.cn/Survey/Index/3750"
-        # http://ius.iclick.cn/Survey/Step/3750?userkey=33CD5237DEA808AAAB2B276B8CAB7A04&page=4
         options = webdriver.ChromeOptions()
         options.add_argument('lang=zh_CN.UTF-8')
         # 设置headers
         options.add_argument('user-agent="' + self.select_user_agent() + '"')
         driver = webdriver.Chrome(chrome_options=options)
         driver.set_page_load_timeout(100)  # 设置超时报错
-        driver.set_script_timeout(100)  # 设置脚本超时时间。
-        driver.implicitly_wait(100)  # 设置页面加载等待5秒
-        # driver.maximize_window()
+        driver.set_script_timeout(5)  # 设置脚本超时时间。
+        driver.implicitly_wait(5)  # 设置页面加载等待5秒
+        driver.maximize_window()
         driver.delete_all_cookies()
         self.driver = driver
         # 设置等待
@@ -60,15 +61,15 @@ class AxfExamineVote(object):
                 break
         return index
 
-    def is_alert_exist(self):
-        try:
-            self.driver._switch_to.alert()
-            return True
-        except NoAlertPresentException as e:
-            return False
-
     def close_alert(self):
-        self.driver._switch_to.alert().accept()
+        try:
+            alert = WebDriverWait(self.driver, 1).until(EC.alert_is_present())
+            if alert:
+                alert.accept()
+        except Exception as e:
+            print('---{0}'.format(traceback.print_exc()))
+
+
 
     def select_user_agent(self):
         """
@@ -113,12 +114,13 @@ class AxfExamineVote(object):
         start_btn = self.driver.find_element_by_id('sub')
         start_btn.click()
 
-        # self.page_action()
         while True:
             try:
-                self.page_action()
+                ret = self.page_action()
+                if ret:
+                    break
             except Exception as e:
-                print('---{0}'.format(e))
+                print('---{0}'.format(traceback.print_exc()))
         #     sleep(2)
 
         # 设置代理
@@ -136,8 +138,10 @@ class AxfExamineVote(object):
         month_element = self.wait.until(lambda diver: month_options[random.randint(1, 12)])
         if not year_element.get_attribute('checked'):
             year_element.click()
+            sleep(1)
         if not month_element.get_attribute('checked'):
             month_element.click()
+            sleep(1)
 
     def question_province_city(self, QBox):
         """
@@ -147,13 +151,15 @@ class AxfExamineVote(object):
         select_list = QBox.find_elements_by_css_selector('dl dd select')
         province_option = select_list[0].find_elements_by_css_selector('option')  # 省份
         province_element = self.wait.until(lambda diver: province_option[random.randint(1, 34)])
-        sleep(1)
-        province_element.click()
+        if not province_element.get_attribute('checked'):
+            province_element.click()
+            sleep(1)
 
         city_option = select_list[1].find_elements_by_css_selector('option')  # 城市
         city_element = self.wait.until(lambda diver: city_option[random.randint(1, len(city_option))])
-        sleep(1)
-        city_element.click()
+        if not city_element.get_attribute('checked'):
+            city_element.click()
+            sleep(1)
 
     def question_checkbox(self, QBox, checked_index=None):
         """
@@ -172,10 +178,13 @@ class AxfExamineVote(object):
             list_range = range(0, items_lenth)
             random_indexs = random.sample(list_range, randint)
             random_indexs = sorted(random_indexs)
+
             for index in random_indexs:
                 element = self.wait.until(lambda diver: items[index].find_element_by_css_selector('input'))
                 if not element.get_attribute('checked'):
                     element.click()
+                    if element.get_attribute('isajax') == '1':
+                        sleep(1)
 
     def question_radio(self, QBox, defalut_index=None):
         """
@@ -217,26 +226,60 @@ class AxfExamineVote(object):
         element = self.wait.until(lambda diver: td_list[1].find_element_by_css_selector('input'))
         if not element.get_attribute('checked'):
             element.click()
+            if element.get_attribute('isajax') == '1':
+                sleep(1)
+
+        # for list_index in list_range:
+        #     td_list = tr_list[list_index].find_elements_by_css_selector('td')
+        #     element = self.wait.until(lambda diver: td_list[1].find_element_by_css_selector('input'))
+        #     if element.get_attribute('checked'):
+        #         element.click()
 
         for checkbox_index in checkbox_indexs:
             td_list = tr_list[checkbox_index].find_elements_by_css_selector('td')
             element = self.wait.until(lambda diver: td_list[0].find_element_by_css_selector('input'))
             if not element.get_attribute('checked'):
                 element.click()
+                if element.get_attribute('isajax') == '1':
+                    sleep(1)
+
 
     def question_matrix_radio(self, QBox):
         """
         矩阵单选题
         :return:
         """
-        tr_list = QBox.find_elements_by_css_selector('tbody tr:not(.thead)')
 
-        for tr in tr_list:
-            randint = random.randint(0, 2)
-            td_list = tr.find_elements_by_css_selector('td')
-            element = self.wait.until(lambda diver: td_list[randint].find_element_by_css_selector('input'))
-            if not element.get_attribute('checked'):
+        th_element = QBox.find_element_by_css_selector(".thead th:nth-child(2)")
+        # horizontal = True #默认纵向选择
+        horizontal = th_element.get_attribute('isoptionchildMustAnswer')
+        tr_list = QBox.find_elements_by_css_selector('tbody tr:not(.thead)')
+        if not horizontal:
+            for tr in tr_list:
+                randint = random.randint(0, 2)
+                td_list = tr.find_elements_by_css_selector('td')
+                element = self.wait.until(lambda diver: td_list[randint].find_element_by_css_selector('input'))
+                if not element.get_attribute('checked'):
+                    element.click()
+        else:
+            # horizontal_lenth = len(tr_list)
+
+            item_data = {}
+            for tr in tr_list:
+                # print('//th[id="'+tr.get_attribute('id')+'"]/td[not(contains(@style,"display:none"))]')
+                td_elements = tr.find_elements_by_xpath('//tr[@id="'+tr.get_attribute('id')+'"]/td[not(contains(@style,"display"))]')
+                for td_element in td_elements:
+                    l = td_element.get_attribute('l')
+                    if not item_data.has_key("key_"+l):
+                        item_data["key_"+l] = [td_element]
+                    else:
+                        item_data["key_" + l].append(td_element)
+
+            for v_list in item_data.values():
+                random_v = random.randint(0, len(v_list) - 1)
+                element = v_list[random_v].find_element_by_css_selector('input')
                 element.click()
+
 
     def question_matrix_checkbox(self, QBox):
         """
@@ -259,24 +302,26 @@ class AxfExamineVote(object):
             td_list = on_day_tr_element.find_elements_by_css_selector('td')
             element = self.wait.until(lambda diver: td_list[0].find_element_by_css_selector('input'))
             if not element.get_attribute('checked'):
-                sleep(2)
                 element.click()
         except Exception as e:
             print(e)
+
 
         for random_index in random_indexs_left:
             td_list = tr_list[random_index].find_elements_by_css_selector('td')
             element = self.wait.until(lambda diver: td_list[0].find_element_by_css_selector('input'))
             if not element.get_attribute('checked'):
-                sleep(2)
                 element.click()
+                if element.get_attribute('isajax') == '1':
+                    sleep(1)
 
         for random_index in random_indexs_right:
             td_list = tr_list[random_index].find_elements_by_css_selector('td')
             element = self.wait.until(lambda diver: td_list[1].find_element_by_css_selector('input'))
             if not element.get_attribute('checked'):
-                sleep(2)
                 element.click()
+                if element.get_attribute('isajax') == '1':
+                    sleep(1)
 
     def question_most_checkbox(self, QBox, num=1):
         """
@@ -288,38 +333,49 @@ class AxfExamineVote(object):
 
         list_range = range(0, dd_list_lenth)
         random_indexs = random.sample(list_range, num)
+
+        # for list_index in list_range:
+        #     element = self.wait.until(lambda diver: dd_list[list_index].find_element_by_css_selector('input'))
+        #     if element.get_attribute('checked'):
+        #         element.click()
+
         for random_index in random_indexs:
             element = self.wait.until(lambda diver: dd_list[random_index].find_element_by_css_selector('input'))
             if not element.get_attribute('checked'):
                 element.click()
+                if element.get_attribute('isajax') == '1':
+                    sleep(1)
 
     def page_action(self):
         # 获取问题列表
 
+        self.close_alert()
         try:
-            pnowtxt = self.driver.find_element_by_id('pnowtxt')
+            pnowtxt = WebDriverWait(self.driver, 1).until(
+                EC.presence_of_element_located((By.ID, "pnowtxt"))
+            )
             self.current_page = int(pnowtxt.text)
         except Exception as e:
-            print e
+            pass
 
         QBoxs = self.driver.find_elements_by_class_name('QBox')
-
         for QBox in QBoxs:
-            q_type = ''
-            try:
-                tcaption = QBox.find_element_by_class_name('tcaption')
-                q_type = tcaption.text.replace("（", "").replace("）", "")
-            except Exception as e:
-                print(e)
-                print('未获取到 tcaption')
-
-            if not q_type:
-                q_title = QBox.find_element_by_css_selector('h3 p').text
-                if '出生年月' in q_title:
-                    self.question_year_month_day(QBox)
-                elif '省份和城市' in q_title:
-                    self.question_province_city(QBox)
+            q_title = QBox.find_element_by_css_selector('h3 p').text
+            if '出生年月' in q_title:
+                self.question_year_month_day(QBox)
+            elif '省份和城市' in q_title:
+                self.question_province_city(QBox)
             else:
+                q_type = ''
+                try:
+                    tcaption = WebDriverWait(self.driver, 1).until(
+                        EC.presence_of_element_located(
+                            (By.XPATH, '//div[@id="' + QBox.get_attribute('id') + '"]/h3/p/span[@class="tcaption"]'))
+                    )
+                    q_type = tcaption.text.replace("（", "").replace("）", "")
+
+                except Exception as e:
+                    pass
                 if q_type == '多选题':
                     if self.current_page == 1:
                         self.question_checkbox(QBox, [8])
@@ -341,13 +397,16 @@ class AxfExamineVote(object):
                     self.question_most_checkbox(QBox, num)
 
 
-        sleep(2)
+        sleep(1)
         self.driver.find_element_by_id('submitbutton').click()
         if self.driver.find_element_by_id('submitbutton').text == u'完成提交':
-            print("完成{0}次提交".format(submit_count))
             global submit_count
             submit_count += 1
+            print("完成{0}次提交".format(submit_count))
             self.driver.quit()
+            return True
+        else:
+            return False
 
 
 if __name__ == '__main__':
