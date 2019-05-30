@@ -11,11 +11,17 @@ from threading import Thread
 import random
 import pickle
 import sys
+import requests
 
 from selenium.common.exceptions import NoAlertPresentException
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
+from bs4 import BeautifulSoup
+
+# from urllib.request import urlopen,ProxyHandler,build_opener,install_opener,Request,HTTPHandler
+# from urllib.error import HTTPError,URLError
+# import socket
 
 reload(sys)
 sys.setdefaultencoding('utf8')
@@ -28,12 +34,15 @@ class AxfExamineVote(object):
     安心付投票调查
     """
 
-    def __init__(self):
+    def __init__(self, ip=None):
         # self.url = "http://ius.iclick.cn/Survey/Step/3750?userkey=B1994B871724EAC250697F2823B5CE2E&page=21"
         self.url = "http://ius.iclick.cn/Survey/Index/3750"
         options = webdriver.ChromeOptions()
         options.add_argument('lang=zh_CN.UTF-8')
         # 设置headers
+        if ip:
+            options.add_argument("--proxy-server=http://{0}".format(ip))
+
         options.add_argument('user-agent="' + self.select_user_agent() + '"')
         driver = webdriver.Chrome(chrome_options=options)
         driver.set_page_load_timeout(100)  # 设置超时报错
@@ -70,8 +79,8 @@ class AxfExamineVote(object):
             print('---{0}'.format(traceback.print_exc()))
 
 
-
-    def select_user_agent(self):
+    @staticmethod
+    def select_user_agent():
         """
         随机获取一个useragent
         :return:
@@ -108,9 +117,10 @@ class AxfExamineVote(object):
         开始投票
         :return:
         """
-
-        self.driver.get(self.url)
-
+        try:
+            self.driver.get(self.url)
+        except Exception as e:
+            self.driver.quit()
         start_btn = self.driver.find_element_by_id('sub')
         start_btn.click()
 
@@ -408,6 +418,60 @@ class AxfExamineVote(object):
         else:
             return False
 
+    @staticmethod
+    def get_ip():
+        """获取代理IP"""
+        url = "http://www.xicidaili.com/nn"
+        headers = { "Accept":"text/html,application/xhtml+xml,application/xml;",
+                    "Accept-Encoding":"gzip, deflate, sdch",
+                    "Accept-Language":"zh-CN,zh;q=0.8,en;q=0.6",
+                    "Referer":"http://www.xicidaili.com",
+                    "User-Agent":"Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/42.0.2311.90 Safari/537.36"
+                    }
+        r = requests.get(url,headers=headers)
+        soup = BeautifulSoup(r.text, 'html.parser')
+        data = soup.table.find_all("td")
+        ip_compile= re.compile(r'<td>(\d+\.\d+\.\d+\.\d+)</td>')    # 匹配IP
+        port_compile = re.compile(r'<td>(\d+)</td>')                # 匹配端口
+        # http_type_compile = re.compile(r'<td>(HTTP|HTTPS)</td>')         # http类型
+        ip = re.findall(ip_compile,str(data))                       # 获取所有IP
+        # http_type = re.findall(http_type_compile, str(data))
+        port = re.findall(port_compile,str(data))                   # 获取所有端口
+        zip_ips = zip(ip, port)
+        return [':'.join(i) for i in zip_ips]                  # 组合IP+端口，如：115.112.88.23:8080
+
+    @staticmethod
+    def check_proxy(ip):
+
+        proxies={
+            "http":"http://{ip_item}".format(ip_item=ip)
+        }
+
+        try:
+            response = requests.get('http://www.ip138.com/', proxies=proxies,
+                                    timeout=1)
+            if response.status_code == 200:
+                return True
+        except Exception as e:
+            print ('error : ', e)
+            return False
 
 if __name__ == '__main__':
-    AxfExamineVote().start_vote()
+    ips = AxfExamineVote.get_ip()
+    # checked_ip_list = []
+
+    for ip in ips:
+        ret = AxfExamineVote.check_proxy(ip)
+        if ret:
+            try:
+                AxfExamineVote(ip=ip).start_vote()
+            except Exception as e:
+                print ('error : ', e)
+
+            # checked_ip_list.append({"http_type":ip_data[0],"ip":ip_data[1]})
+
+    # ip_dict = random.choice(checked_ip_list)
+    # for i in range(1,11):
+    #     AxfExamineVote(ip=ip_dict['ip'],http_type=ip_dict['http_type']).start_vote()
+
+
