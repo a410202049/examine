@@ -27,6 +27,11 @@ class Config:
             'urls': ['http://www.xicidaili.com/%s/%s' % (m, n) for m in ['nn', 'nt', 'wn', 'wt'] for n in range(1, 2)],
             'pattern': ".//*[@id='ip_list']/tr[position()>1]",
             'position': {'ip': './td[2]', 'port': './td[3]', 'type': './td[5]', 'protocol': './td[6]'}
+        },
+        {
+            'urls': ['http://www.kuaidaili.com/proxylist/%s/' % n for n in range(1, 2)],
+            'pattern': ".//*[@id='freelist']/table/tbody/tr[position()>0]",
+            'position': {'ip': './td[1]', 'port': './td[2]', 'type': './td[3]', 'protocol': './td[4]'}
         }
     ]
 

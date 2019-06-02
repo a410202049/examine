@@ -451,16 +451,18 @@ class AxfExamineVote(object):
 
 
 if __name__ == '__main__':
-    ips = AxfExamineVote.get_ip()
-    # checked_ip_list = []
-
-    for ip in ips:
-        ret = AxfExamineVote.check_proxy(ip)
-        if ret:
-            try:
-                AxfExamineVote(ip=ip).start_vote()
-            except Exception as e:
-                print ('error : ', e)
+    ret = AxfExamineVote.check_proxy('114.113.220.155:8118')
+    print ret
+    # ips = AxfExamineVote.get_ip()
+    # # checked_ip_list = []
+    #
+    # for ip in ips:
+    #     ret = AxfExamineVote.check_proxy(ip)
+    #     if ret:
+    #         try:
+    #             AxfExamineVote(ip=ip).start_vote()
+    #         except Exception as e:
+    #             print ('error : ', e)
 
             # checked_ip_list.append({"http_type":ip_data[0],"ip":ip_data[1]})
 

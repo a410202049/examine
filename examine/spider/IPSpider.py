@@ -12,6 +12,7 @@ from lxml import etree
 from utils.compatibility import text_
 from Queue import Queue
 db = Db()
+db.init_db()
 
 
 class IPSpider(Spider):
@@ -21,7 +22,6 @@ class IPSpider(Spider):
         self.proxies = set()
         self.proxies_quequ = Queue()
         self.checked_proxies = Queue()
-        db.init_db()
         self.db = db
 
     def gather_ips(self, url, parser):
@@ -86,16 +86,21 @@ class IPSpider(Spider):
         while True:
             if not self.checked_proxies.empty():
                 proxy = self.checked_proxies.get(timeout=300)
-                proxy_model = Proxy()
-                proxy_model.area = proxy['area']
-                proxy_model.country = proxy['country']
-                proxy_model.ip = proxy['ip']
-                proxy_model.speed = proxy['speed']
-                proxy_model.port = proxy['port']
-                proxy_model.type = proxy['type']
-                proxy_model.protocol = proxy['protocol']
-                self.db.session.add(proxy_model)
-                self.db.session.commit()
+
+                try:
+                    proxy_model = Proxy()
+                    proxy_model.area = proxy['area']
+                    proxy_model.country = proxy['country']
+                    proxy_model.ip = proxy['ip']
+                    proxy_model.speed = proxy['speed']
+                    proxy_model.port = proxy['port']
+                    proxy_model.type = proxy['type']
+                    proxy_model.protocol = proxy['protocol']
+                    self.db.session.add(proxy_model)
+                    self.db.session.commit()
+                except Exception as e:
+                    print('{ip}:{port}已经存在'.format(ip=proxy['ip'], port=proxy['port']))
+                    continue
             else:
                 break
 
