@@ -3,10 +3,8 @@
 from __future__ import unicode_literals
 import datetime
 from sqlalchemy import Column, Integer, DateTime, Numeric, VARCHAR
-from sqlalchemy.ext.declarative import declarative_base
 from config import Config
-
-BaseModel = declarative_base()
+from model.BaseModel import BaseModel
 
 
 class Proxy(BaseModel):

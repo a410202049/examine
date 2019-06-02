@@ -10,13 +10,13 @@ class Config:
     DEFAULT_SCORE = 10
 
     # 下载页面超时时间
-    TIMEOUT = 10
+    TIMEOUT = 3
 
     # 重试次数
     RETRY_TIME = 3
 
     # 从免费代理网站下载时的最大并发
-    MAX_DOWNLOAD_CONCURRENT = 3
+    MAX_DOWNLOAD_CONCURRENT = 5
 
     # 任务队列
     TASK_QUEUE_SIZE = 4
@@ -30,9 +30,11 @@ class Config:
         }
     ]
 
+    SQLALCHEMY_DATABASE_URI = 'sqlite:///' + os.path.dirname(__file__) + '/data/proxy.db'
+
 
 class LocalConfig(Config):
-    SQLALCHEMY_DATABASE_URI = 'sqlite:///' + os.path.dirname(__file__) + '/data/proxy.db'
+    pass
 
 
 config = {

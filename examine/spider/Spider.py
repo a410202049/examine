@@ -99,11 +99,12 @@ class Spider(object):
         try:
             return self._get_page_html(url, header, is_proxy, proxy_ip)
 
-        except Exception:
-            count = 0  # 重试次数
-            while count < Config.RETRY_TIME:
-                try:
-                    return self._get_page_html(url, header, is_proxy, proxy_ip)
-                except Exception:
-                    count += 1
-        return None
+        except Exception as e:
+            print(e)
+            return None
+            # count = 0  # 重试次数
+            # while count < Config.RETRY_TIME:
+            #     try:
+            #         return self._get_page_html(url, header, is_proxy, proxy_ip)
+            #     except Exception:
+            #         count += 1
