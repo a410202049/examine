@@ -23,13 +23,18 @@ class Config:
 
     # 代理池 采集网站列表
     get_proxy_list = [
+        # {
+        #     'urls': ['http://www.66ip.cn/%s.html' % n for n in ['index'] + list(range(1, 10))],
+        #     'pattern': ".//*[@id='main']/div/div[1]/table/tr[position()>1]",
+        #     'position': {'ip': './td[1]', 'port': './td[2]', 'type': './td[4]', 'protocol': ''}
+        # },
         {
-            'urls': ['http://www.xicidaili.com/%s/%s' % (m, n) for m in ['nn', 'nt', 'wn', 'wt'] for n in range(1, 2)],
+            'urls': ['http://www.xicidaili.com/%s/%s' % (m, n) for m in ['nn', 'nt', 'wn', 'wt'] for n in range(1, 10)],
             'pattern': ".//*[@id='ip_list']/tr[position()>1]",
             'position': {'ip': './td[2]', 'port': './td[3]', 'type': './td[5]', 'protocol': './td[6]'}
         },
         {
-            'urls': ['http://www.kuaidaili.com/proxylist/%s/' % n for n in range(1, 2)],
+            'urls': ['http://www.kuaidaili.com/proxylist/%s/' % n for n in range(1, 10)],
             'pattern': ".//*[@id='freelist']/table/tbody/tr[position()>0]",
             'position': {'ip': './td[1]', 'port': './td[2]', 'type': './td[3]', 'protocol': './td[4]'}
         }
