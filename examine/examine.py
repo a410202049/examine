@@ -7,13 +7,10 @@ from time import sleep
 
 import re
 from selenium import webdriver
-from threading import Thread
 import random
-import pickle
 import sys
 import requests
 
-from selenium.common.exceptions import NoAlertPresentException
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
@@ -77,7 +74,6 @@ class AxfExamineVote(object):
                 alert.accept()
         except Exception as e:
             print('---{0}'.format(traceback.print_exc()))
-
 
     @staticmethod
     def select_user_agent():
@@ -208,7 +204,7 @@ class AxfExamineVote(object):
             if not element.get_attribute('checked'):
                 element.click()
         else:
-            random_index = random.randint(0, items_lenth-1)
+            random_index = random.randint(0, items_lenth - 1)
             element = self.wait.until(lambda diver: items[random_index].find_element_by_css_selector('input'))
             if not element.get_attribute('checked'):
                 element.click()
@@ -253,7 +249,6 @@ class AxfExamineVote(object):
                 if element.get_attribute('isajax') == '1':
                     sleep(1)
 
-
     def question_matrix_radio(self, QBox):
         """
         矩阵单选题
@@ -277,11 +272,12 @@ class AxfExamineVote(object):
             item_data = {}
             for tr in tr_list:
                 # print('//th[id="'+tr.get_attribute('id')+'"]/td[not(contains(@style,"display:none"))]')
-                td_elements = tr.find_elements_by_xpath('//tr[@id="'+tr.get_attribute('id')+'"]/td[not(contains(@style,"display"))]')
+                td_elements = tr.find_elements_by_xpath(
+                    '//tr[@id="' + tr.get_attribute('id') + '"]/td[not(contains(@style,"display"))]')
                 for td_element in td_elements:
                     l = td_element.get_attribute('l')
-                    if not item_data.has_key("key_"+l):
-                        item_data["key_"+l] = [td_element]
+                    if not item_data.has_key("key_" + l):
+                        item_data["key_" + l] = [td_element]
                     else:
                         item_data["key_" + l].append(td_element)
 
@@ -289,7 +285,6 @@ class AxfExamineVote(object):
                 random_v = random.randint(0, len(v_list) - 1)
                 element = v_list[random_v].find_element_by_css_selector('input')
                 element.click()
-
 
     def question_matrix_checkbox(self, QBox):
         """
@@ -315,7 +310,6 @@ class AxfExamineVote(object):
                 element.click()
         except Exception as e:
             print(e)
-
 
         for random_index in random_indexs_left:
             td_list = tr_list[random_index].find_elements_by_css_selector('td')
@@ -406,7 +400,6 @@ class AxfExamineVote(object):
                     num = int(re.search('(\d+)', q_type).group())
                     self.question_most_checkbox(QBox, num)
 
-
         sleep(1)
         self.driver.find_element_by_id('submitbutton').click()
         if self.driver.find_element_by_id('submitbutton').text == u'完成提交':
@@ -422,29 +415,29 @@ class AxfExamineVote(object):
     def get_ip():
         """获取代理IP"""
         url = "http://www.xicidaili.com/nn"
-        headers = { "Accept":"text/html,application/xhtml+xml,application/xml;",
-                    "Accept-Encoding":"gzip, deflate, sdch",
-                    "Accept-Language":"zh-CN,zh;q=0.8,en;q=0.6",
-                    "Referer":"http://www.xicidaili.com",
-                    "User-Agent":"Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/42.0.2311.90 Safari/537.36"
-                    }
-        r = requests.get(url,headers=headers)
+        headers = {"Accept": "text/html,application/xhtml+xml,application/xml;",
+                   "Accept-Encoding": "gzip, deflate, sdch",
+                   "Accept-Language": "zh-CN,zh;q=0.8,en;q=0.6",
+                   "Referer": "http://www.xicidaili.com",
+                   "User-Agent": "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/42.0.2311.90 Safari/537.36"
+                   }
+        r = requests.get(url, headers=headers)
         soup = BeautifulSoup(r.text, 'html.parser')
         data = soup.table.find_all("td")
-        ip_compile= re.compile(r'<td>(\d+\.\d+\.\d+\.\d+)</td>')    # 匹配IP
-        port_compile = re.compile(r'<td>(\d+)</td>')                # 匹配端口
+        ip_compile = re.compile(r'<td>(\d+\.\d+\.\d+\.\d+)</td>')  # 匹配IP
+        port_compile = re.compile(r'<td>(\d+)</td>')  # 匹配端口
         # http_type_compile = re.compile(r'<td>(HTTP|HTTPS)</td>')         # http类型
-        ip = re.findall(ip_compile,str(data))                       # 获取所有IP
+        ip = re.findall(ip_compile, str(data))  # 获取所有IP
         # http_type = re.findall(http_type_compile, str(data))
-        port = re.findall(port_compile,str(data))                   # 获取所有端口
+        port = re.findall(port_compile, str(data))  # 获取所有端口
         zip_ips = zip(ip, port)
-        return [':'.join(i) for i in zip_ips]                  # 组合IP+端口，如：115.112.88.23:8080
+        return [':'.join(i) for i in zip_ips]  # 组合IP+端口，如：115.112.88.23:8080
 
     @staticmethod
     def check_proxy(ip):
 
-        proxies={
-            "http":"http://{ip_item}".format(ip_item=ip)
+        proxies = {
+            "http": "http://{ip_item}".format(ip_item=ip)
         }
 
         try:
@@ -455,6 +448,7 @@ class AxfExamineVote(object):
         except Exception as e:
             print ('error : ', e)
             return False
+
 
 if __name__ == '__main__':
     ips = AxfExamineVote.get_ip()
@@ -473,5 +467,3 @@ if __name__ == '__main__':
     # ip_dict = random.choice(checked_ip_list)
     # for i in range(1,11):
     #     AxfExamineVote(ip=ip_dict['ip'],http_type=ip_dict['http_type']).start_vote()
-
-
