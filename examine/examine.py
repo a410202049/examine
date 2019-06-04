@@ -2,6 +2,7 @@
 # -*- encoding: utf-8 -*-
 from __future__ import unicode_literals
 
+import threading
 import traceback
 from time import sleep
 
@@ -19,11 +20,14 @@ from bs4 import BeautifulSoup
 # from urllib.request import urlopen,ProxyHandler,build_opener,install_opener,Request,HTTPHandler
 # from urllib.error import HTTPError,URLError
 # import socket
+from spider.IPSpider import IPSpider
 
 reload(sys)
 sys.setdefaultencoding('utf8')
 
 submit_count = 0
+ip_list = []
+used_ip_list = []
 
 
 class AxfExamineVote(object):
@@ -31,26 +35,31 @@ class AxfExamineVote(object):
     安心付投票调查
     """
 
-    def __init__(self, ip=None):
-        # self.url = "http://ius.iclick.cn/Survey/Step/3750?userkey=B1994B871724EAC250697F2823B5CE2E&page=21"
+    def __init__(self, ip=None, ip_spider=None):
+        # self.url = "http://ius.iclick.cn/Survey/Step/3750?userkey=BDC5862C4EB3C32A56BAA4ABBDFBB8C0&page=21"
         self.url = "http://ius.iclick.cn/Survey/Index/3750"
+        self.alert_num = 0
         options = webdriver.ChromeOptions()
         options.add_argument('lang=zh_CN.UTF-8')
+        options.add_argument('--headless')
+        options.add_argument('--disable-gpu')
+
         # 设置headers
         if ip:
             options.add_argument("--proxy-server=http://{0}".format(ip))
 
         options.add_argument('user-agent="' + self.select_user_agent() + '"')
         driver = webdriver.Chrome(chrome_options=options)
-        driver.set_page_load_timeout(100)  # 设置超时报错
+        driver.set_page_load_timeout(25)  # 设置超时报错
         driver.set_script_timeout(5)  # 设置脚本超时时间。
         driver.implicitly_wait(5)  # 设置页面加载等待5秒
         driver.maximize_window()
         driver.delete_all_cookies()
         self.driver = driver
+        self.ip_spider = ip_spider
         # 设置等待
         self.wait = WebDriverWait(self.driver, 10, 1)
-        self.current_page = 0
+        self.current_page = '首页'
 
     def random_index(self, rate):
         """随机变量的概率函数"""
@@ -72,8 +81,13 @@ class AxfExamineVote(object):
             alert = WebDriverWait(self.driver, 1).until(EC.alert_is_present())
             if alert:
                 alert.accept()
+                self.alert_num += 1
+
+            if self.alert_num >= 3:
+                self.driver.quit()
+
         except Exception as e:
-            print('---{0}'.format(traceback.print_exc()))
+            pass
 
     @staticmethod
     def select_user_agent():
@@ -113,10 +127,8 @@ class AxfExamineVote(object):
         开始投票
         :return:
         """
-        try:
-            self.driver.get(self.url)
-        except Exception as e:
-            self.driver.quit()
+        self.driver.get(self.url)
+
         start_btn = self.driver.find_element_by_id('sub')
         start_btn.click()
 
@@ -126,11 +138,11 @@ class AxfExamineVote(object):
                 if ret:
                     break
             except Exception as e:
-                print('---{0}'.format(traceback.print_exc()))
-        #     sleep(2)
+                pass
+                #     sleep(2)
 
-        # 设置代理
-        # options.add_argument('--proxy-server=http://' + ipport)
+                # 设置代理
+                # options.add_argument('--proxy-server=http://' + ipport)
 
     def question_year_month_day(self, QBox):
         """
@@ -352,7 +364,6 @@ class AxfExamineVote(object):
 
     def page_action(self):
         # 获取问题列表
-
         self.close_alert()
         try:
             pnowtxt = WebDriverWait(self.driver, 1).until(
@@ -360,7 +371,9 @@ class AxfExamineVote(object):
             )
             self.current_page = int(pnowtxt.text)
         except Exception as e:
-            pass
+            self.current_page = 21
+
+        print('正在采集第{page}页'.format(page=self.current_page))
 
         QBoxs = self.driver.find_elements_by_class_name('QBox')
         for QBox in QBoxs:
@@ -400,72 +413,69 @@ class AxfExamineVote(object):
                     num = int(re.search('(\d+)', q_type).group())
                     self.question_most_checkbox(QBox, num)
 
-        sleep(1)
-        self.driver.find_element_by_id('submitbutton').click()
+        sleep(10)
+
+        # sleep(5)
         if self.driver.find_element_by_id('submitbutton').text == u'完成提交':
-            global submit_count
-            submit_count += 1
-            print("完成{0}次提交".format(submit_count))
+            self.driver.find_element_by_id('submitbutton').click()
+
+            self.ip_spider.add_submit_count()
             self.driver.quit()
             return True
         else:
+            self.driver.find_element_by_id('submitbutton').click()
             return False
 
-    @staticmethod
-    def get_ip():
-        """获取代理IP"""
-        url = "http://www.xicidaili.com/nn"
-        headers = {"Accept": "text/html,application/xhtml+xml,application/xml;",
-                   "Accept-Encoding": "gzip, deflate, sdch",
-                   "Accept-Language": "zh-CN,zh;q=0.8,en;q=0.6",
-                   "Referer": "http://www.xicidaili.com",
-                   "User-Agent": "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/42.0.2311.90 Safari/537.36"
-                   }
-        r = requests.get(url, headers=headers)
-        soup = BeautifulSoup(r.text, 'html.parser')
-        data = soup.table.find_all("td")
-        ip_compile = re.compile(r'<td>(\d+\.\d+\.\d+\.\d+)</td>')  # 匹配IP
-        port_compile = re.compile(r'<td>(\d+)</td>')  # 匹配端口
-        # http_type_compile = re.compile(r'<td>(HTTP|HTTPS)</td>')         # http类型
-        ip = re.findall(ip_compile, str(data))  # 获取所有IP
-        # http_type = re.findall(http_type_compile, str(data))
-        port = re.findall(port_compile, str(data))  # 获取所有端口
-        zip_ips = zip(ip, port)
-        return [':'.join(i) for i in zip_ips]  # 组合IP+端口，如：115.112.88.23:8080
+    def close_driver(self):
+        """
+        关闭浏览器
+        :return: 
+        """
+        self.driver.quit()
 
-    @staticmethod
-    def check_proxy(ip):
 
-        proxies = {
-            "http": "http://{ip_item}".format(ip_item=ip)
-        }
+def task_get_ip_list_thread(ip_spider):
+    global ip_list
+    ip_dict_list = ip_spider.get_fee_ip_list()
+    for ip_obj in ip_dict_list:
+        ip_addr = ip_obj['ip']
+        port = ip_obj['port']
+        ip = "{ip}:{port}".format(ip=ip_addr, port=port)
+        if ip not in ip_dict_list:
+            ip_list.append(ip)
 
+
+def task_thread(ip_spider):
+    global ip_list
+    for ip in ip_list:
+        print("{ip}".format(ip=ip))
+        check_ret = ip_spider._check_proxy_ip(ip)
+        if not check_ret:
+            print("{ip}验证不通过 ERROR".format(ip=ip))
+            ip_list.remove(ip)
+            continue
+        print("{ip}验证通过 SUCCESS".format(ip=ip))
+        vote = AxfExamineVote(ip=ip, ip_spider=ip_spider)
         try:
-            response = requests.get('http://www.ip138.com/', proxies=proxies,
-                                    timeout=1)
-            if response.status_code == 200:
-                return True
+            if not ip in used_ip_list:
+                vote.start_vote()
+                used_ip_list.append(ip)
+                ip_list.remove(ip)
+
         except Exception as e:
+            vote.close_driver()
             print ('error : ', e)
-            return False
+            continue
 
 
 if __name__ == '__main__':
-    ret = AxfExamineVote.check_proxy('114.113.220.155:8118')
-    print ret
-    # ips = AxfExamineVote.get_ip()
-    # # checked_ip_list = []
-    #
-    # for ip in ips:
-    #     ret = AxfExamineVote.check_proxy(ip)
-    #     if ret:
-    #         try:
-    #             AxfExamineVote(ip=ip).start_vote()
-    #         except Exception as e:
-    #             print ('error : ', e)
 
-            # checked_ip_list.append({"http_type":ip_data[0],"ip":ip_data[1]})
+    ip_spider = IPSpider()
+    lock = threading.Lock()
+    while True:
+        task_get_ip_list_thread(ip_spider)
+        task_thread(ip_spider)
+        # sleep(10)
 
-    # ip_dict = random.choice(checked_ip_list)
-    # for i in range(1,11):
-    #     AxfExamineVote(ip=ip_dict['ip'],http_type=ip_dict['http_type']).start_vote()
+
+

@@ -1,11 +1,16 @@
 #!/usr/bin/python
 # -*- encoding: utf-8 -*-
 from __future__ import unicode_literals
+
+import json
+import random
 import time
+
+from datetime import datetime
 
 from DB import Db
 from config import Config
-from model.Proxy import Proxy
+from model.Proxy import Proxy, SubmitCount
 from spider.Spider import Spider
 from utils.IPAddress import IPAddresss
 from lxml import etree
@@ -30,13 +35,17 @@ class IPSpider(Spider):
         :return:
         """
         ip_spider = IPSpider()
-        header = self.get_random_header()
+        if parser.get('header'):
+            header = parser['header']
+        else:
+            header = self.get_random_header()
         response = ip_spider.page_download(url, header=header)
         if response:
             proxylist = ip_spider.parse(response, parser)
             if proxylist is not None:
                 for proxy in proxylist:
                     proxy_str = '%s:%s' % (proxy['ip'], proxy['port'])
+                    print("采集IP："+proxy_str)
                     if proxy_str not in self.proxies:
                         self.proxies.add(proxy_str)
                         while True:
@@ -129,7 +138,11 @@ class IPSpider(Spider):
                 type = proxy.xpath(parser['position']['type'])[0].text
                 type = 0 if text_('高') in type else 1
 
-                protocol = (proxy.xpath(parser['position']['protocol'])[0].text).lower()
+                # 设置默认http
+                protocol = 'http'
+                if parser['position']['protocol']:
+                    protocol = (proxy.xpath(parser['position']['protocol'])[0].text).lower()
+
                 protocol = 0 if protocol == 'http' else 1
                 addr = self.ips.getIpAddr(self.ips.str2ip(ip))
 
@@ -139,6 +152,10 @@ class IPSpider(Spider):
                 else:
                     country = text_('国外')
                     area = addr
+
+                if parser.get('only_china') and country == text_('国外'):
+                    continue
+
             except Exception as e:
                 continue
 
@@ -160,3 +177,57 @@ class IPSpider(Spider):
             if text_(area) in addr:
                 return True
         return False
+
+    def get_random_ip(self):
+        ips = db.session.query(Proxy).all()
+        IP_LIST = []
+        for ip in ips:
+            IP_LIST.append("{ip}:{port}".format(ip=ip.ip, port=ip.port))
+        return random.choice(IP_LIST) if IP_LIST else None
+
+    def get_db_ip_list(self):
+        ips = db.session.query(Proxy).all()
+        IP_LIST = []
+        for ip in ips:
+            IP_LIST.append("{ip}:{port}".format(ip=ip.ip, port=ip.port))
+        return IP_LIST
+
+    def add_submit_count(self):
+        sub = db.session.query(SubmitCount).first()
+        sub.count = sub.count + 1
+        db.session.merge(sub)
+
+
+    def get_fee_ip_list(self):
+        """
+        获取收费IP列表
+        :return: 
+        """
+        import requests
+
+        r = requests.get('http://api.wandoudl.com/api/ip?app_key=34e0770096923994e61de0fd6baabc07&pack=205158&num=1&xy=1&type=2&lb=\r\n&mr=2&')
+        ret = json.loads(r.text)
+        if ret['code'] == 200:
+            ip_list = ret['data']
+            return ip_list
+        return []
+
+    # def str2datetime(input_str):
+    #     return datetime.strptime(input_str, '%Y%m%d%H%M%S')
+
+    def save_fee_ip(self, proxy):
+        proxy_model = Proxy()
+        proxy_model.area = proxy['city']
+        proxy_model.country = '中国'
+        proxy_model.ip = proxy['ip']
+        proxy_model.speed = '100'
+        proxy_model.port = proxy['port']
+        proxy_model.type = 0
+        proxy_model.protocol = 0
+        proxy_model.expire_time = datetime.strptime(proxy['expire_time'], '%Y-%m-%d %H:%M:%S')
+        self.db.session.add(proxy_model)
+        self.db.session.commit()
+
+    def delete_ip(self):
+        db.session.query(Proxy).delete()
+        db.session.commit()
