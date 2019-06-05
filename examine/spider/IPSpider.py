@@ -207,7 +207,7 @@ class IPSpider(Spider):
         """
         import requests
 
-        r = requests.get('http://api.wandoudl.com/api/ip?app_key=34e0770096923994e61de0fd6baabc07&pack=205158&num=1&xy=1&type=2&lb=\r\n&mr=2&')
+        r = requests.get('http://api.wandoudl.com/api/ip?app_key=34e0770096923994e61de0fd6baabc07&pack=205158&num=10&xy=1&type=2&lb=\r\n&mr=2&')
         ret = json.loads(r.text)
         if ret['code'] == 200:
             ip_list = ret['data']
