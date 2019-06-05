@@ -10,7 +10,7 @@ class Config(object):
     DEFAULT_SCORE = 10
 
     # 下载页面超时时间
-    TIMEOUT = 5
+    TIMEOUT = 20
 
     # 启动线程数量
     THREAD_NUM = 20

@@ -195,7 +195,9 @@ class IPSpider(Spider):
     def add_submit_count(self):
         sub = db.session.query(SubmitCount).first()
         sub.count = sub.count + 1
+        print("成功提交了{num}".format(num=sub.count))
         db.session.merge(sub)
+        db.session.commit()
 
 
     def get_fee_ip_list(self):

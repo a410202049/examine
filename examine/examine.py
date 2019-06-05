@@ -3,7 +3,6 @@
 from __future__ import unicode_literals
 
 import threading
-import traceback
 from time import sleep
 
 import re
@@ -41,8 +40,8 @@ class AxfExamineVote(object):
         self.alert_num = 0
         options = webdriver.ChromeOptions()
         options.add_argument('lang=zh_CN.UTF-8')
-        options.add_argument('--headless')
-        options.add_argument('--disable-gpu')
+        # options.add_argument('--headless')
+        # options.add_argument('--disable-gpu')
 
         # 设置headers
         if ip:
@@ -50,7 +49,7 @@ class AxfExamineVote(object):
 
         options.add_argument('user-agent="' + self.select_user_agent() + '"')
         driver = webdriver.Chrome(chrome_options=options)
-        driver.set_page_load_timeout(25)  # 设置超时报错
+        driver.set_page_load_timeout(100)  # 设置超时报错
         driver.set_script_timeout(5)  # 设置脚本超时时间。
         driver.implicitly_wait(5)  # 设置页面加载等待5秒
         driver.maximize_window()
@@ -81,11 +80,6 @@ class AxfExamineVote(object):
             alert = WebDriverWait(self.driver, 1).until(EC.alert_is_present())
             if alert:
                 alert.accept()
-                self.alert_num += 1
-
-            if self.alert_num >= 3:
-                self.driver.quit()
-
         except Exception as e:
             pass
 
@@ -139,10 +133,6 @@ class AxfExamineVote(object):
                     break
             except Exception as e:
                 pass
-                #     sleep(2)
-
-                # 设置代理
-                # options.add_argument('--proxy-server=http://' + ipport)
 
     def question_year_month_day(self, QBox):
         """
@@ -247,12 +237,6 @@ class AxfExamineVote(object):
             if element.get_attribute('isajax') == '1':
                 sleep(1)
 
-        # for list_index in list_range:
-        #     td_list = tr_list[list_index].find_elements_by_css_selector('td')
-        #     element = self.wait.until(lambda diver: td_list[1].find_element_by_css_selector('input'))
-        #     if element.get_attribute('checked'):
-        #         element.click()
-
         for checkbox_index in checkbox_indexs:
             td_list = tr_list[checkbox_index].find_elements_by_css_selector('td')
             element = self.wait.until(lambda diver: td_list[0].find_element_by_css_selector('input'))
@@ -279,11 +263,10 @@ class AxfExamineVote(object):
                 if not element.get_attribute('checked'):
                     element.click()
         else:
-            # horizontal_lenth = len(tr_list)
 
             item_data = {}
             for tr in tr_list:
-                # print('//th[id="'+tr.get_attribute('id')+'"]/td[not(contains(@style,"display:none"))]')
+
                 td_elements = tr.find_elements_by_xpath(
                     '//tr[@id="' + tr.get_attribute('id') + '"]/td[not(contains(@style,"display"))]')
                 for td_element in td_elements:
@@ -350,10 +333,6 @@ class AxfExamineVote(object):
         list_range = range(0, dd_list_lenth)
         random_indexs = random.sample(list_range, num)
 
-        # for list_index in list_range:
-        #     element = self.wait.until(lambda diver: dd_list[list_index].find_element_by_css_selector('input'))
-        #     if element.get_attribute('checked'):
-        #         element.click()
 
         for random_index in random_indexs:
             element = self.wait.until(lambda diver: dd_list[random_index].find_element_by_css_selector('input'))
@@ -370,10 +349,9 @@ class AxfExamineVote(object):
                 EC.presence_of_element_located((By.ID, "pnowtxt"))
             )
             self.current_page = int(pnowtxt.text)
+            print('正在采集第{page}页'.format(page=self.current_page))
         except Exception as e:
-            self.current_page = 21
-
-        print('正在采集第{page}页'.format(page=self.current_page))
+            pass
 
         QBoxs = self.driver.find_elements_by_class_name('QBox')
         for QBox in QBoxs:
@@ -413,10 +391,8 @@ class AxfExamineVote(object):
                     num = int(re.search('(\d+)', q_type).group())
                     self.question_most_checkbox(QBox, num)
 
-        sleep(10)
-
-        # sleep(5)
         if self.driver.find_element_by_id('submitbutton').text == u'完成提交':
+            sleep(50)
             self.driver.find_element_by_id('submitbutton').click()
 
             self.ip_spider.add_submit_count()
